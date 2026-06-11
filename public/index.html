@@ -1,0 +1,7 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bolão da Copa 2026</title><link rel="stylesheet" href="style.css"></head><body>
+<header><div><b>🏆 Bolão da Copa 2026</b><span>Palpites, resultados e mata-mata</span></div><button id="adminBtn">Área admin</button></header>
+<main>
+<section id="login" class="card hero"><h1>Entre no bolão</h1><p>Digite o nome que vai aparecer no ranking e faça seus palpites da fase de grupos.</p><input id="nome" placeholder="Ex: Pedro"><button id="entrar">Começar palpites</button></section>
+<section id="app" class="hidden"><div class="toolbar"><h2 id="saudacao"></h2><button id="salvar">Salvar palpites</button></div><div id="jogos"></div></section>
+<section id="admin" class="hidden"><div class="toolbar"><h2>Atualizar resultados</h2><button id="voltar">Voltar</button><button id="salvarAdmin">Salvar resultados</button></div><div class="tabs"><button class="tab active" data-tab="resultados">Fase de grupos</button><button class="tab" data-tab="mata">Mata-mata</button><button class="tab" data-tab="palpiteiros">Palpiteiros</button></div><div id="adminContent"></div></section>
+</main><div id="toast"></div><script src="app.js"></script></body></html>
