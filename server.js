@@ -16,7 +16,7 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 function defaultDB(){
-  return { users: [], palpites: [], resultados: {}, mataMata: [] };
+  return { users: [], palpites: [], resultados: {}, mataMata: [], horarios: {} };
 }
 function readDB(){
   if(!fs.existsSync(DB)) fs.writeFileSync(DB, JSON.stringify(defaultDB(), null, 2));
@@ -72,6 +72,16 @@ function pontosDoJogo(palpite, resultado){
   if(Number(palpite.c) === Number(resultado.c) && Number(palpite.f) === Number(resultado.f)) return 10;
   return outcome(palpite) === outcome(resultado) ? 5 : 0;
 }
+function jogoBloqueado(db, jogoId){
+  const iso = db.horarios?.[jogoId];
+  if(!iso) return false;
+  const inicio = new Date(iso).getTime();
+  if(Number.isNaN(inicio)) return false;
+  return Date.now() >= inicio;
+}
+function jogosBloqueados(db){
+  return Object.fromEntries(Object.keys(db.horarios || {}).map(id => [id, jogoBloqueado(db, id)]));
+}
 function ranking(db){
   return db.palpites.map(p => {
     let pontos = 0, exatos = 0, vencedores = 0;
@@ -87,7 +97,7 @@ function ranking(db){
 
 app.get('/api/data', (req,res) => {
   const db = readDB();
-  res.json({ resultados: db.resultados, mataMata: db.mataMata, ranking: ranking(db) });
+  res.json({ resultados: db.resultados, mataMata: db.mataMata, horarios: db.horarios || {}, bloqueados: jogosBloqueados(db), ranking: ranking(db), agora: new Date().toISOString() });
 });
 
 app.post('/api/register', (req,res) => {
@@ -132,16 +142,23 @@ app.post('/api/palpites', auth, (req,res) => {
   const db = readDB();
   const { palpites } = req.body;
   if(!palpites) return res.status(400).json({ erro: 'Palpites são obrigatórios' });
-  const registro = { id: req.user.id, userId: req.user.id, nome: req.user.username, palpites, criadoEm: new Date().toISOString() };
+  const anterior = db.palpites.find(p => p.userId === req.user.id || p.nome.toLowerCase() === req.user.username.toLowerCase());
+  const finais = { ...(anterior?.palpites || {}) };
+  Object.entries(palpites || {}).forEach(([jogoId, valor]) => {
+    if(!jogoBloqueado(db, jogoId)) finais[jogoId] = valor;
+  });
+  const tentativasBloqueadas = Object.keys(palpites || {}).filter(jogoId => jogoBloqueado(db, jogoId));
+  const registro = { id: req.user.id, userId: req.user.id, nome: req.user.username, palpites: finais, criadoEm: anterior?.criadoEm || new Date().toISOString(), atualizadoEm: new Date().toISOString() };
   db.palpites = db.palpites.filter(p => p.userId !== req.user.id && p.nome.toLowerCase() !== req.user.username.toLowerCase());
   db.palpites.push(registro); writeDB(db);
-  res.json({ ok:true, registro, ranking: ranking(db) });
+  res.json({ ok:true, registro, bloqueadosIgnorados: tentativasBloqueadas, ranking: ranking(db) });
 });
 
 app.post('/api/resultados', adminAuth, (req,res) => {
   const db = readDB();
   db.resultados = req.body.resultados || {};
   db.mataMata = req.body.mataMata || [];
+  db.horarios = req.body.horarios || db.horarios || {};
   writeDB(db); res.json({ ok:true, ranking: ranking(db) });
 });
 
